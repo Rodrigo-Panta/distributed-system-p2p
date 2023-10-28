@@ -1,4 +1,4 @@
-const Peer = require("./peer");
+const Peer = require("../../common/peer");
 const net = require("net");
 
 module.exports = class Server extends Peer {
@@ -20,14 +20,15 @@ module.exports = class Server extends Peer {
         );
     }
 
-    onData(socket, data) {
-        console.log("received: ", data.toString())
-    }
-
     onTrustedPeerConected(socket) {
         this.trustedPeers.push(socket);
         console.log(`Nó ${socket.address} adiconado à lista de nós confiáveis`);
         socket.write(JSON.stringify(this.data_trusted_peers));
         socket.write(JSON.stringify(this.data_pdb));
     }
+
+    onData(socket, data) {
+        console.log("received: ", data.toString())
+    }
+
 }

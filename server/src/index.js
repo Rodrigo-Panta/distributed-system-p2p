@@ -30,7 +30,6 @@ console.log(process.argv.length);
 
 if (process.argv.length <= 2) {
     console.log('Nenhum nó secundário confiável definido');
-    process.exit(1);
 }
 process.argv.slice(2).forEach(async otherPeerAddress => {
     server.connectToTrustedPeer(otherPeerAddress)
