@@ -29,10 +29,13 @@ module.exports = class Peer {
         );
         this.onConnection(socket);
     }
-    onConnection(socket) { }
 
 
     onData(socket, data) {
         console.log("received: ", data.toString())
+    }
+
+    broadcast(data) {
+        this.connections.forEach(socket => socket.write(data))
     }
 }
