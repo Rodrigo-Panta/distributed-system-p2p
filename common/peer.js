@@ -23,13 +23,15 @@ module.exports = class Peer {
 
     onSocketConnected(socket) {
         console.log(socket);
-        this.connections.push(socket);
+        this.addConnection(socket);
         socket.on('data', (data) =>
             this.onData(socket, data)
         );
-        this.onConnection(socket);
     }
 
+    addConnection() {
+        this.connections.push(socket);
+    }
 
     onData(socket, data) {
         console.log("received: ", data.toString())
@@ -37,5 +39,10 @@ module.exports = class Peer {
 
     broadcast(data) {
         this.connections.forEach(socket => socket.write(data))
+    }
+
+    sendPDBFile(socket) {
+        console.log('Enviando arquivos PDB');
+        //TODO: implementar envio dos arquivos PDB criptografados
     }
 }
