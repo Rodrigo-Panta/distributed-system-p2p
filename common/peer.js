@@ -39,17 +39,11 @@ module.exports = class Peer {
         data = JSON.parse(dataAsStream);
         let message = data['message'];
         switch (message) {
-            case messagesStrings.TRANSFER_COMPLETE:
-                let socketIsSender = this.senderPeers.some(item => item['address'] == data['address']);
-                if (!socketIsSender) {
-                    this.senderPeers.push({
-                        address: data['address'],
-                        currentTransfers: 0
-                    });
-                }
-                this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, -1);
-            case messagesStrings.TRANSFER_INITIATED:
-                this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, 1);
+            case messagesStrings.SENDER_LIST:
+                //TODO: receber lista de nós que podem enviar o arquivo e buscar em cada um deles em ordem
+                console.log('Conectando com outros nós para buscar o arquivo pdb');
+            case messagesStrings.PDB_FILES:
+                this.savePdbFiles(data['pdbFiles']);
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }
@@ -63,5 +57,9 @@ module.exports = class Peer {
         console.log('Enviando arquivos PDB');
         //TODO: implementar envio dos arquivos PDB criptografados
         socket.write(JSON.stringify({ message: messagesStrings.PDB_FILES, pdbfiles: this.pdbfiles }))
+    }
+
+    savePDBFiles(pdbFiles) {
+        console.log('salvando os arquivos PDB em disco e na memória')
     }
 }
