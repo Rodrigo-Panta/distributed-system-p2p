@@ -2,16 +2,12 @@
 require("dotenv").config();
 
 let data_pdb = {
-    message: 'pdb_files',
-    pdb_file: {
-        pdb1: "PDBFILE1",
-        pdb2: "PDBFILE2",
-        pdb3: "PDBFILE3",
-        pdb4: "PDBFILE4",
-    }
+    pdb1: "PDBFILE1",
+    pdb2: "PDBFILE2",
+    pdb3: "PDBFILE3",
+    pdb4: "PDBFILE4",
 };
 let data_trusted_peers = {
-    message: 'trusted_peers',
     addresses: [],
 };
 

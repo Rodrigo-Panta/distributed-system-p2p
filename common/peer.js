@@ -1,4 +1,5 @@
 const net = require("net");
+const messagesStrings = require('../common/messages');
 
 module.exports = class Peer {
     constructor(port) {
@@ -34,7 +35,24 @@ module.exports = class Peer {
     }
 
     onData(socket, data) {
-        console.log("received: ", data.toString())
+        console.log("received: ", data.toString());
+        data = JSON.parse(dataAsStream);
+        let message = data['message'];
+        switch (message) {
+            case messagesStrings.TRANSFER_COMPLETE:
+                let socketIsSender = this.senderPeers.some(item => item['address'] == data['address']);
+                if (!socketIsSender) {
+                    this.senderPeers.push({
+                        address: data['address'],
+                        currentTransfers: 0
+                    });
+                }
+                this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, -1);
+            case messagesStrings.TRANSFER_INITIATED:
+                this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, 1);
+            default:
+                console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
+        }
     }
 
     broadcast(data) {
@@ -44,5 +62,6 @@ module.exports = class Peer {
     sendPDBFile(socket) {
         console.log('Enviando arquivos PDB');
         //TODO: implementar envio dos arquivos PDB criptografados
+        socket.write(JSON.stringify({ message: messagesStrings.PDB_FILES, pdbfiles: this.pdbfiles }))
     }
 }

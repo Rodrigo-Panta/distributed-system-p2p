@@ -1,5 +1,6 @@
 const Peer = require("../../common/peer");
 const net = require("net");
+const messagesStrings = require('../../common/messages');
 
 module.exports = class Server extends Peer {
     constructor(port, data_pdb, data_trusted_peers, maxSenders) {
@@ -25,9 +26,9 @@ module.exports = class Server extends Peer {
     onData(socket, dataAsStream) {
         console.log("received: ", dataAsStream.toString())
         data = JSON.parse(dataAsStream);
-        let message = data[message];
+        let message = data['message'];
         switch (message) {
-            case 'TransferComplete':
+            case messagesStrings.TRANSFER_COMPLETE:
                 let socketIsSender = this.senderPeers.some(item => item['address'] == data['address']);
                 if (!socketIsSender) {
                     this.senderPeers.push({
@@ -36,11 +37,30 @@ module.exports = class Server extends Peer {
                     });
                 }
                 this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, -1);
-            case 'TransferInitiated':
+            case messagesStrings.TRANSFER_INITIATED:
                 this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, 1);
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }
+    }
+
+    designateSenders(socket) {
+        // Manda para o nó recem conectado uma lista de nó que podem lhe enviar o arquivo 
+        let sendersCount = this.senderPeers.length;
+        let senderAddresses = [];
+        if (sendersCount == 0) {
+            this.sendPDBFile(socket);
+            return;
+        }
+        for (let i in Math.min(this.maxSenders, sendersCount)) {
+            senderAddresses.push(this.senderPeers[i]['address']);
+        }
+        socket.write(JSON.stringify({ message: messagesStrings.SENDER_LIST, addresses: senderAddresses }));
+
+    }
+
+    updateSenderPeerTransfers(address, amount) {
+        this.senderPeers.find(item => item['address'] == address).currentTransfers += amount;
     }
 
 
@@ -62,24 +82,6 @@ module.exports = class Server extends Peer {
         socket.write(JSON.stringify(this.dataPdb));
     }
 
-    designateSenders(socket) {
-        // Manda para o nó recem conectado uma lista de nó que podem lhe enviar o arquivo 
-        let sendersCount = this.senderPeers.length;
-        let senderAddresses = [];
-        if (sendersCount == 0) {
-            this.sendPDBFile(socket);
-            return;
-        }
-        for (let i in Math.min(this.maxSenders, sendersCount)) {
-            senderAddresses.push(this.senderPeers[i]['address']);
-        }
-        socket.write(JSON.stringify({ message: 'SendersList', addresses: senderAddresses }));
-
-    }
-
-    updateSenderPeerTransfers(address, amount) {
-        this.senderPeers.find(item => item['address'] == address).currentTransfers += amount;
-    }
 
 
 }
