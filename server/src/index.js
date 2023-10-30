@@ -20,7 +20,7 @@ if (!port) {
 console.log("Porta: ", port);
 
 const Server = require("./server");
-const server = new Server(port, data_pdb, data_trusted_peers);
+const server = new Server(port, data_pdb, data_trusted_peers, 10);
 
 console.log(process.argv.length);
 

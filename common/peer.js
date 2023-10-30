@@ -30,7 +30,7 @@ module.exports = class Peer {
         );
     }
 
-    addConnection() {
+    addConnection(socket) {
         this.connections.push(socket);
     }
 
