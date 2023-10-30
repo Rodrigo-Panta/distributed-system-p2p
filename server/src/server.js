@@ -3,12 +3,11 @@ const net = require("net");
 const messagesStrings = require('../../common/messages');
 
 module.exports = class Server extends Peer {
-    constructor(port, data_pdb, data_trusted_peers, maxSenders) {
-        super(port);
+    constructor(port, dataPdb, data_trusted_peers, maxSenders) {
+        super(port, dataPdb);
         // Essa é uma lista de Peers confiáveis que servirão como nós servidores caso o central caia.
         this.maxSenders = maxSenders;
         this.trustedPeers = [];
-        this.dataPdb = data_pdb;
         this.dataTrustedPeers = data_trusted_peers;
         // Objeto para controlar os estados de cada conexão
         this.senderPeers = [];
@@ -25,7 +24,7 @@ module.exports = class Server extends Peer {
 
     onData(socket, dataAsStream) {
         console.log("received: ", dataAsStream.toString())
-        data = JSON.parse(dataAsStream);
+        let data = JSON.parse(dataAsStream);
         let message = data['message'];
         switch (message) {
             case messagesStrings.TRANSFER_COMPLETE:
@@ -37,8 +36,10 @@ module.exports = class Server extends Peer {
                     });
                 }
                 this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, -1);
+                break;
             case messagesStrings.TRANSFER_INITIATED:
                 this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, 1);
+                break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }

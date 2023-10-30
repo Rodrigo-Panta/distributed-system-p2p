@@ -2,9 +2,10 @@ const net = require("net");
 const messagesStrings = require('../common/messages');
 
 module.exports = class Peer {
-    constructor(port) {
+    constructor(port, dataPdb) {
         this.port = port;
         this.connections = [];
+        this.dataPdb = dataPdb;
         const server = net.createServer(
             (socket) => {
                 this.onSocketConnected(socket)
@@ -34,16 +35,18 @@ module.exports = class Peer {
         this.connections.push(socket);
     }
 
-    onData(socket, data) {
-        console.log("received: ", data.toString());
-        data = JSON.parse(dataAsStream);
+    onData(socket, dataAsStream) {
+        console.log("received: ", dataAsStream.toString());
+        let data = JSON.parse(dataAsStream);
         let message = data['message'];
         switch (message) {
             case messagesStrings.SENDER_LIST:
                 //TODO: receber lista de nós que podem enviar o arquivo e buscar em cada um deles em ordem
                 console.log('Conectando com outros nós para buscar o arquivo pdb');
+                break;
             case messagesStrings.PDB_FILES:
-                this.savePdbFiles(data['pdbFiles']);
+                this.savePDBFiles(data['pdbFiles']);
+                break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }
@@ -56,10 +59,17 @@ module.exports = class Peer {
     sendPDBFile(socket) {
         console.log('Enviando arquivos PDB');
         //TODO: implementar envio dos arquivos PDB criptografados
-        socket.write(JSON.stringify({ message: messagesStrings.PDB_FILES, pdbfiles: this.pdbfiles }))
+        socket.write(JSON.stringify({ message: messagesStrings.PDB_FILES, pdbFiles: this.dataPdb }))
     }
 
     savePDBFiles(pdbFiles) {
-        console.log('salvando os arquivos PDB em disco e na memória')
+        //TODO: Implementar arquivos PDB
+        console.log('salvando os arquivos PDB em disco e na memória');
+        this.dataPdb = {
+            pdb1: "PDBFILE1",
+            pdb2: "PDBFILE2",
+            pdb3: "PDBFILE3",
+            pdb4: "PDBFILE4",
+        };
     }
 }

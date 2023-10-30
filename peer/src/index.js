@@ -1,7 +1,9 @@
 //index.js
 require("dotenv").config();
 
-let port = process.env.PORT;
+// let port = process.env.PORT;
+port = '30' + (Math.floor(Math.random() * 89) + 10).toString();
+
 if (!port) {
     console.log('Variável de ambiente PORT não definida');
     process.exit(1);
