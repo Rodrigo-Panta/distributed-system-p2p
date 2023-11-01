@@ -18,4 +18,4 @@ To run the peer:
 
 `npm i`
 
-`node server/index.js [server_ip]:[server_port]` 
+`node peer/index.js [server_ip]:[server_port]` 
