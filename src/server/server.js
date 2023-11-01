@@ -1,6 +1,6 @@
-const Peer = require("../../common/peer");
+const Peer = require("../common/peer");
 const net = require("net");
-const messagesStrings = require('../../common/messages');
+const messagesStrings = require('../common/messages');
 
 module.exports = class Server extends Peer {
     constructor(port, dataPdb, data_trusted_peers, maxSenders) {
