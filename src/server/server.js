@@ -3,12 +3,10 @@ const net = require("net");
 const messagesStrings = require('../common/messages');
 
 module.exports = class Server extends Peer {
-    constructor(port, dataPdb, data_trusted_peers, maxSenders) {
+    constructor(port, dataPdb, maxSenders) {
         super(port, dataPdb);
-        // Essa é uma lista de Peers confiáveis que servirão como nós servidores caso o central caia.
         this.maxSenders = maxSenders;
         this.trustedPeers = [];
-        this.dataTrustedPeers = data_trusted_peers;
         // Objeto para controlar os estados de cada conexão
         this.senderPeers = [];
     }
@@ -63,26 +61,4 @@ module.exports = class Server extends Peer {
     updateSenderPeerTransfers(address, amount) {
         this.senderPeers.find(item => item['address'] == address).currentTransfers += amount;
     }
-
-
-    connectToTrustedPeer(address) {
-        if (address.split(":").length !== 2)
-            throw Error("O endereço do outro peer deve ser composto por host:port ");
-        const [host, port] = address.split(":");
-        const socket = net.createConnection({ port, host }, () => {
-            this.onSocketConnected(socket);
-            this.onTrustedPeerConected(socket);
-        }
-        );
-    }
-
-    onTrustedPeerConected(socket) {
-        this.trustedPeers.push(socket);
-        console.log(`Nó ${socket.address} adiconado à lista de nós confiáveis`);
-        socket.write(JSON.stringify(this.dataTrustedPeers));
-        socket.write(JSON.stringify(this.dataPdb));
-    }
-
-
-
 }

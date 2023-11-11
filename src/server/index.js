@@ -7,9 +7,6 @@ let data_pdb = {
     pdb3: "PDBFILE3",
     pdb4: "PDBFILE4",
 };
-let data_trusted_peers = {
-    addresses: [],
-};
 
 let port = process.env.PORT;
 if (!port) {
@@ -20,7 +17,7 @@ if (!port) {
 console.log("Porta: ", port);
 
 const Server = require("./server");
-const server = new Server(port, data_pdb, data_trusted_peers, 10);
+const server = new Server(port, data_pdb, 10);
 
 console.log(process.argv.length);
 
