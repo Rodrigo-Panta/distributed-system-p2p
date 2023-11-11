@@ -17,7 +17,7 @@ module.exports = class Server extends Peer {
         //TODO: implementar exclusão mutua
         //Designação de quem envia para o novo socket
         this.designateSenders(socket);
-        this.connections.push({ socket: socket, transmissionsCount: -1 });
+        this.connections.push({ socket: socket });
         console.log("Troca de chaves");
         //TODO: implementar troca de chaves
     }

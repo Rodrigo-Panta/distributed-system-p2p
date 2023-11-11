@@ -11,7 +11,7 @@ if (!port) {
 console.log("Porta: ", port);
 
 
-const Peer = require("../../common/peer");
+const Peer = require("../common/peer");
 const peer = new Peer(port);
 
 if (process.argv.length != 3) {
