@@ -10,7 +10,7 @@ if (!port) {
 console.log("Porta: ", port);
 
 const Server = require("./server");
-const server = new Server(port, 10);
+const server = new Server(port, 10, 13);
 
 console.log(process.argv.length);
 

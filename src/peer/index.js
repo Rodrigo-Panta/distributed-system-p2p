@@ -14,7 +14,7 @@ console.log("Porta: ", port);
 
 
 const Peer = require("../common/peer");
-const peer = new Peer(port, statusesStrings.WAITING_PDB);
+const peer = new Peer(port, statusesStrings.WAITING_PDB, 13);
 
 if (process.argv.length != 3) {
     console.log('Nó servidor não definido');

@@ -38,6 +38,9 @@ module.exports = class Server extends Peer {
             case messagesStrings.TRANSFER_INITIATED:
                 this.updateSenderPeerTransfers(`${socket.address}:${socket.port}`, 1);
                 break;
+            case messagesStrings.GET_PDB_FILES:
+                this.sendPDBFile(socket, data['index']);
+                break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }
@@ -48,7 +51,7 @@ module.exports = class Server extends Peer {
         let sendersCount = this.senderPeers.length;
         let senderAddresses = [];
         if (sendersCount == 0) {
-            this.sendPDBFile(socket);
+            this.sendPDBFile(socket, 1);
             return;
         }
         for (let i in Math.min(this.maxSenders, sendersCount)) {
