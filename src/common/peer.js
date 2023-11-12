@@ -81,7 +81,7 @@ module.exports = class Peer {
     sendPDBFile(socket, peerAddress) {
 
         socket.write(JSON.stringify({ message: messagesStrings.SEND_PDB_FILES }));
-        const sourceFile = 'file/files.zip';
+        const sourceFile = 'file/file.zip';
 
         //Encriptografar arquivo com a chave pública do socket
 
@@ -112,7 +112,7 @@ module.exports = class Peer {
 
     }
 
-    receivePDBFiles(pdbFiles) {
+    receivePDBFiles(socket) {
         //TODO: Implementar arquivos PDB
         console.log('salvando os arquivos PDB em disco e na memória');
         this.fsWriteStream = fs.createWriteStream(`./file/file.zip`);
