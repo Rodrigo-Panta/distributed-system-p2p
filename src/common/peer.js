@@ -2,6 +2,7 @@ const net = require("net");
 const fs = require('fs');
 const messagesStrings = require('../common/messages');
 const statusesStrings = require('../common/statuses');
+const { encryptFile, decryptFile, generateKeyPair } = require('../criptography/criptography.js');
 
 module.exports = class Peer {
     constructor(port, status, fileAmount) {
@@ -13,10 +14,15 @@ module.exports = class Peer {
             }
         );
         server.listen(port, () => console.log("Ouvindo porta " + port))
+
+        this.keyPair = generateKeyPair();
+        this.publicKey = this.keyPair.publicKey;
+        
         this.status = status;
         this.successCount = 0;
         this.fileAmount = fileAmount;
-        // Gerar chaves
+
+        
     }
 
     connectTo(address) {
@@ -26,11 +32,15 @@ module.exports = class Peer {
         const socket = net.createConnection({ port, host }, () =>
             this.onSocketConnected(socket)
         );
+
     }
 
     onSocketConnected(socket) {
         console.log(socket);
         this.addConnection(socket);
+
+        socket.write(JSON.stringify({ message: messagesStrings.PUBLIC_KEY, publicKey: this.publicKey }));
+
         socket.on('data', (data) =>
             this.onData(socket, data)
         );
@@ -47,12 +57,31 @@ module.exports = class Peer {
             console.log("received: ", dataAsStream.toString());
         } catch (e) {
         }
-
+    
         if (data != null) {
-            this.onMessageData(socket, data);
+            if (data.message === messagesStrings.PUBLIC_KEY) {
+                // Tratar a mensagem de chave pública recebida
+                this.onPublicKeyReceived(socket, data.publicKey);
+            } else {
+                // Verificar se onPublicKeyReceived já foi chamado para o socket
+                if (!socket.peerInfo || !socket.peerInfo.publicKey) {
+                    console.error(`Erro: Chave pública não recebida para ${socket.remoteAddress}:${socket.remotePort}`);
+                    return;
+                }
+    
+                // Tratar outras mensagens
+                this.onMessageData(socket, data);
+            }
         } else {
             this.onStreamedData(dataAsStream);
         }
+    }
+
+    onPublicKeyReceived(socket, publicKey) {
+        // Tratar a chave pública recebida
+        //console.log(`Received public key from ${socket.remoteAddress}:${socket.remotePort}: ${publicKey}`);
+        // Armazenar a chave pública com o socket
+        socket.peerInfo = { publicKey };
     }
 
     onMessageData(socket, data) {
@@ -89,18 +118,26 @@ module.exports = class Peer {
 
     sendPDBFile(socket, index) {
 
-        socket.write(JSON.stringify({ message: messagesStrings.SEND_PDB_FILES, 'index': index }));
         const sourceFile = `file/pdb_${index}.zip`;
-
-        //Encriptografar arquivo com a chave pública do socket
-
-        const sourceFileStream = fs.createReadStream(sourceFile);
-
-        var fileSize = fs.statSync(sourceFile).size;
-
+        const encryptedFile = `file/pdb_${index}_encrypted.zip`;
+    
+        // Verificar se socket.peerInfo está definido
+        if (!socket.peerInfo || !socket.peerInfo.publicKey) {
+            console.error(`Erro: Chave pública não recebida para ${socket.remoteAddress}:${socket.remotePort}`);
+            return;
+        }
+    
+        // Encriptografar o arquivo antes de enviar
+        encryptFile(sourceFile, encryptedFile, socket.peerInfo.publicKey);
+    
+        socket.write(JSON.stringify({ message: messagesStrings.SEND_PDB_FILES, 'index': index }));
+    
+        const sourceFileStream = fs.createReadStream(encryptedFile);
+        var fileSize = fs.statSync(encryptedFile).size;
+    
         const writeStream = socket;
         let previousPercentage = 0;
-
+    
         sourceFileStream.on('data', (chunk) => {
             const percentage = (writeStream.bytesWritten / fileSize) * 100;
             if (Math.floor(percentage) > Math.floor(previousPercentage)) {
@@ -108,26 +145,33 @@ module.exports = class Peer {
                 previousPercentage = percentage;
             }
         });
-
+    
         sourceFileStream.pipe(writeStream);
-
+    
         sourceFileStream.on('end', () => {
-            console.log(`Arquivo ${sourceFile} enviado para ${socket.address}`);
+            console.log(`Arquivo pdb_${index}.zip enviado`);
         });
-
+    
         sourceFileStream.on('error', (err) => {
-            console.error('Erro durante a transferência do arquivo files.zip:', err.message);
+            console.error(`Erro durante a transferência do arquivo pdb_${index}.zip:`, err.message);
         });
-
     }
-
+    
     receivePDBFiles(socket, index) {
-        console.log(`salvando o arquivo PDB ${index}`);
-        this.fsWriteStream = fs.createWriteStream(`./file/pdb_${index}.zip`);
+        console.log(`Recebendo arquivo PDB ${index}`);
+        this.fsWriteStream = fs.createWriteStream(`./file/pdb_${index}_encrypted.zip`);
         socket.pipe(this.fsWriteStream);
-
-        this.fsWriteStream.on('end', () => {
-            console.log(`Arquivo ${index}.zip`);
+    
+        this.fsWriteStream.on('finish', () => {
+            console.log(`Arquivo pdb_${index}_encrypted.zip recebido`);
+    
+            const decryptedFile = `./file/pdb_${index}.zip`;
+    
+            // Descriptografar o arquivo recebido
+            decryptFile(`./file/pdb_${index}_encrypted.zip`, decryptedFile, '../criptography/keys/self/private.pem');
+    
+            console.log(`Arquivo pdb_${index}.zip descriptografado salvo em ${decryptedFile}`);
+    
             this.successCount++;
             if (this.successCount >= this.fileAmount) {
                 socket.write(JSON.stringify({ message: messagesStrings.GET_PDB_FILES, 'index': this.successCount + 1 }));
@@ -135,8 +179,8 @@ module.exports = class Peer {
                 socket.write(JSON.stringify({ message: messagesStrings.TRANSFER_COMPLETE }));
             }
         });
-
-        this.fsWriteStream.on('end', () => {
+    
+        this.fsWriteStream.on('error', () => {
             console.log(`Erro ao gravar o arquivo ${index}`);
         });
     }
