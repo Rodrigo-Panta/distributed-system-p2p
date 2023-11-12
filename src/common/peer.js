@@ -41,15 +41,18 @@ module.exports = class Peer {
     }
 
     onData(socket, dataAsStream) {
+        let data = null;
         try {
-            let data = JSON.parse(dataAsStream);
-            this.onMessageData(socket, data);
+            data = JSON.parse(dataAsStream);
             console.log("received: ", dataAsStream.toString());
         } catch (e) {
-            console.log("Received non Json data");
-            this.onStreamedData(dataAsStream);
         }
 
+        if (data != null) {
+            this.onMessageData(socket, data);
+        } else {
+            this.onStreamedData(dataAsStream);
+        }
     }
 
     onMessageData(socket, data) {
@@ -109,7 +112,7 @@ module.exports = class Peer {
         sourceFileStream.pipe(writeStream);
 
         sourceFileStream.on('end', () => {
-            console.log(`Arquivo files.zip salvo em ${sourceFile}`);
+            console.log(`Arquivo ${sourceFile} enviado para ${socket.address}`);
         });
 
         sourceFileStream.on('error', (err) => {
@@ -131,6 +134,10 @@ module.exports = class Peer {
             } else {
                 socket.write(JSON.stringify({ message: messagesStrings.TRANSFER_COMPLETE }));
             }
+        });
+
+        this.fsWriteStream.on('end', () => {
+            console.log(`Erro ao gravar o arquivo ${index}`);
         });
     }
 }
