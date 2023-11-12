@@ -17,12 +17,12 @@ module.exports = class Peer {
 
         this.keyPair = generateKeyPair();
         this.publicKey = this.keyPair.publicKey;
-        
+
         this.status = status;
         this.successCount = 0;
         this.fileAmount = fileAmount;
 
-        
+
     }
 
     connectTo(address) {
@@ -38,16 +38,14 @@ module.exports = class Peer {
     onSocketConnected(socket) {
         console.log(socket);
         this.addConnection(socket);
-
-        socket.write(JSON.stringify({ message: messagesStrings.PUBLIC_KEY, publicKey: this.publicKey }));
-
         socket.on('data', (data) =>
             this.onData(socket, data)
         );
     }
 
     addConnection(socket) {
-        this.connections.push(socket);
+        this.connections.push({ socket: socket, publicKey: '' });
+        this.sendPublicKey(socket);
     }
 
     onData(socket, dataAsStream) {
@@ -57,31 +55,14 @@ module.exports = class Peer {
             console.log("received: ", dataAsStream.toString());
         } catch (e) {
         }
-    
+
         if (data != null) {
-            if (data.message === messagesStrings.PUBLIC_KEY) {
-                // Tratar a mensagem de chave pública recebida
-                this.onPublicKeyReceived(socket, data.publicKey);
-            } else {
-                // Verificar se onPublicKeyReceived já foi chamado para o socket
-                if (!socket.peerInfo || !socket.peerInfo.publicKey) {
-                    console.error(`Erro: Chave pública não recebida para ${socket.remoteAddress}:${socket.remotePort}`);
-                    return;
-                }
-    
-                // Tratar outras mensagens
-                this.onMessageData(socket, data);
-            }
+            // Tratar outras mensagens
+            this.onMessageData(socket, data);
+
         } else {
             this.onStreamedData(dataAsStream);
         }
-    }
-
-    onPublicKeyReceived(socket, publicKey) {
-        // Tratar a chave pública recebida
-        //console.log(`Received public key from ${socket.remoteAddress}:${socket.remotePort}: ${publicKey}`);
-        // Armazenar a chave pública com o socket
-        socket.peerInfo = { publicKey };
     }
 
     onMessageData(socket, data) {
@@ -102,6 +83,9 @@ module.exports = class Peer {
             case messagesStrings.GET_PDB_FILES:
                 this.sendPDBFile(socket, data['index']);
                 break;
+            case messagesStrings.PUBLIC_KEY:
+                this.onPublicKeyReceived(socket, data.publicKey);
+                break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }
@@ -120,24 +104,22 @@ module.exports = class Peer {
 
         const sourceFile = `file/pdb_${index}.zip`;
         const encryptedFile = `file/pdb_${index}_encrypted.zip`;
-    
+
         // Verificar se socket.peerInfo está definido
-        if (!socket.peerInfo || !socket.peerInfo.publicKey) {
-            console.error(`Erro: Chave pública não recebida para ${socket.remoteAddress}:${socket.remotePort}`);
-            return;
-        }
-    
+        this.validatePublicKey(socket);
+
         // Encriptografar o arquivo antes de enviar
-        encryptFile(sourceFile, encryptedFile, socket.peerInfo.publicKey);
-    
+        let connection = this.connections.find(el => el['socket'] == socket);
+        encryptFile(sourceFile, encryptedFile, connection['publicKey']);
+
         socket.write(JSON.stringify({ message: messagesStrings.SEND_PDB_FILES, 'index': index }));
-    
+
         const sourceFileStream = fs.createReadStream(encryptedFile);
         var fileSize = fs.statSync(encryptedFile).size;
-    
+
         const writeStream = socket;
         let previousPercentage = 0;
-    
+
         sourceFileStream.on('data', (chunk) => {
             const percentage = (writeStream.bytesWritten / fileSize) * 100;
             if (Math.floor(percentage) > Math.floor(previousPercentage)) {
@@ -145,33 +127,33 @@ module.exports = class Peer {
                 previousPercentage = percentage;
             }
         });
-    
+
         sourceFileStream.pipe(writeStream);
-    
+
         sourceFileStream.on('end', () => {
             console.log(`Arquivo pdb_${index}.zip enviado`);
         });
-    
+
         sourceFileStream.on('error', (err) => {
             console.error(`Erro durante a transferência do arquivo pdb_${index}.zip:`, err.message);
         });
     }
-    
+
     receivePDBFiles(socket, index) {
         console.log(`Recebendo arquivo PDB ${index}`);
         this.fsWriteStream = fs.createWriteStream(`./file/pdb_${index}_encrypted.zip`);
         socket.pipe(this.fsWriteStream);
-    
+
         this.fsWriteStream.on('finish', () => {
             console.log(`Arquivo pdb_${index}_encrypted.zip recebido`);
-    
+
             const decryptedFile = `./file/pdb_${index}.zip`;
-    
+
             // Descriptografar o arquivo recebido
             decryptFile(`./file/pdb_${index}_encrypted.zip`, decryptedFile, '../criptography/keys/self/private.pem');
-    
+
             console.log(`Arquivo pdb_${index}.zip descriptografado salvo em ${decryptedFile}`);
-    
+
             this.successCount++;
             if (this.successCount >= this.fileAmount) {
                 socket.write(JSON.stringify({ message: messagesStrings.GET_PDB_FILES, 'index': this.successCount + 1 }));
@@ -179,9 +161,34 @@ module.exports = class Peer {
                 socket.write(JSON.stringify({ message: messagesStrings.TRANSFER_COMPLETE }));
             }
         });
-    
+
         this.fsWriteStream.on('error', () => {
             console.log(`Erro ao gravar o arquivo ${index}`);
         });
+    }
+
+    onPublicKeyReceived(socket, publicKey) {
+        // Tratar a chave pública recebida
+        //console.log(`Received public key from ${socket.remoteAddress}:${socket.remotePort}: ${publicKey}`);
+        // Armazenar a chave pública com o socket
+        let connection = this.connections.find((el) => el['socket'] == socket);
+        if (connection) {
+            connection['publicKey'] = publicKey;
+        } else {
+            console.error('Connection not found');
+        }
+    }
+
+
+    validatePublicKey(socket) {
+        let connection = this.connections.find(el => el['socket'] == socket);
+        if (!connection || !connection['publicKey']) {
+            console.error(`Erro: Chave pública não recebida para ${socket.remoteAddress}:${socket.remotePort}`);
+            return;
+        }
+    }
+
+    sendPublicKey(socket) {
+        socket.write(JSON.stringify({ message: messagesStrings.PUBLIC_KEY, publicKey: this.publicKey }));
     }
 }

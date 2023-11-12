@@ -29,14 +29,13 @@ function generateKeyPair() {
 
     const publicKeyPem = fs.readFileSync(path.join(keysFolder, 'public.pem'), 'utf8');
     const privateKeyPem = fs.readFileSync(path.join(keysFolder, 'private.pem'), 'utf8');
-    
+
     return { publicKey: publicKeyPem, privateKey: privateKeyPem };
 }
 
 // Função para criptografar um arquivo usando a chave pública
-function encryptFile(inputFilePath, outputFilePath, publicKeyPath) {
-    const publicKeyPem = fs.readFileSync(publicKeyPath, 'utf8');
-    const publicKey = forge.pki.publicKeyFromPem(publicKeyPem);
+function encryptFile(inputFilePath, outputFilePath, publicKeyString) {
+    const publicKey = forge.pki.publicKeyFromPem(publicKeyString);
 
     const inputData = fs.readFileSync(inputFilePath);
     const encryptedData = publicKey.encrypt(inputData);

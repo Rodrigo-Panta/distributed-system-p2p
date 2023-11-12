@@ -14,10 +14,9 @@ module.exports = class Server extends Peer {
     addConnection(socket) {
         //TODO: implementar exclusão mutua
         //Designação de quem envia para o novo socket
-        this.sendTopPeersOrStream(socket);
-        this.connections.push({ socket: socket });
-        console.log("Troca de chaves");
         //TODO: implementar troca de chaves
+        super.addConnection(socket);
+        console.log("Troca de chaves");
     }
 
     onData(socket, dataAsStream) {
@@ -40,6 +39,10 @@ module.exports = class Server extends Peer {
                 break;
             case messagesStrings.GET_PDB_FILES:
                 this.sendPDBFile(socket, data['index']);
+                break;
+            case messagesStrings.PUBLIC_KEY:
+                this.onPublicKeyReceived(socket, data.publicKey);
+                this.sendTopPeersOrStream(socket);
                 break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
