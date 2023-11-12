@@ -3,8 +3,8 @@ const net = require("net");
 const messagesStrings = require('../common/messages');
 
 module.exports = class Server extends Peer {
-    constructor(port, dataPdb, maxSenders) {
-        super(port, dataPdb);
+    constructor(port, maxSenders) {
+        super(port);
         this.maxSenders = maxSenders;
         this.trustedPeers = [];
         // Objeto para controlar os estados de cada conexão
@@ -14,7 +14,7 @@ module.exports = class Server extends Peer {
     addConnection(socket) {
         //TODO: implementar exclusão mutua
         //Designação de quem envia para o novo socket
-        this.designateSenders(socket);
+        this.sendTopPeersOrStream(socket);
         this.connections.push({ socket: socket });
         console.log("Troca de chaves");
         //TODO: implementar troca de chaves
@@ -43,7 +43,7 @@ module.exports = class Server extends Peer {
         }
     }
 
-    designateSenders(socket) {
+    sendTopPeersOrStream(socket) {
         // Manda para o nó recem conectado uma lista de nó que podem lhe enviar o arquivo 
         let sendersCount = this.senderPeers.length;
         let senderAddresses = [];

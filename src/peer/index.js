@@ -1,5 +1,7 @@
 //index.js
 require("dotenv").config();
+const statusesStrings = require('../common/statuses');
+
 
 // let port = process.env.PORT;
 port = '30' + (Math.floor(Math.random() * 89) + 10).toString();
@@ -12,7 +14,7 @@ console.log("Porta: ", port);
 
 
 const Peer = require("../common/peer");
-const peer = new Peer(port);
+const peer = new Peer(port, statusesStrings.WAITING_PDB);
 
 if (process.argv.length != 3) {
     console.log('Nó servidor não definido');

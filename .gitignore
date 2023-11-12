@@ -1,2 +1,4 @@
 pdb_files/*
 pdb_files.zip
+**/.vscode/**
+**/*.zip
