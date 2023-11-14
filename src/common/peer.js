@@ -1,54 +1,138 @@
-const net = require("net");
+const { Client, Server } = require('ssh2');
 const fs = require('fs');
 const messagesStrings = require('../common/messages');
 const statusesStrings = require('../common/statuses');
-const { encryptFile, decryptFile, generateKeyPair } = require('../criptography/criptography.js');
+const { utils: { generateKeyPair, generateKeyPairSync } } = require('ssh2');
 
 module.exports = class Peer {
-    constructor(port, status, fileAmount) {
+
+    constructor(username, port, status, fileAmount) {
         this.port = port;
+        this.username = username;
         this.connections = [];
-        const server = net.createServer(
-            (socket) => {
-                this.onSocketConnected(socket)
-            }
-        );
-        server.listen(port, () => console.log("Ouvindo porta " + port))
-
-        this.keyPair = generateKeyPair();
-        this.publicKey = this.keyPair.publicKey;
-
+        this.connections = [];
+        this.server = null;
         this.status = status;
         this.successCount = 0;
         this.fileAmount = fileAmount;
+        this.availablePeers = [];
 
+        let keys = generateKeyPairSync('ed25519');
+        this.privateKey = keys.private;
+        this.publicKey = keys.public;
+
+        this.initializeServer();
+
+    }
+
+    initializeServer() {
+        this.server = new Server({
+            hostKeys: [this.privateKey],
+        });
+
+        this.server.listen(this.port, () => console.log("Ouvindo porta " + this.port))
+
+        this.server.on('connection', (client, info) => {
+            this.handleConnection(client, info);
+        });
 
     }
 
     connectTo(address) {
         if (address.split(":").length !== 2)
-            throw Error("O endereço do outro peer deve ser composto por host:port ");
+            throw Error("O endereço do servidor deve ser composto por host:port ");
         const [host, port] = address.split(":");
-        const socket = net.createConnection({ port, host }, () =>
-            this.onSocketConnected(socket)
-        );
+        const client = new Client();
+
+        client.on('ready', async () => {
+            console.log(`Connected to ${host}:${port}`);
+            this.addConnection(client);
+
+            const stream = client.shell();
+            stream.on('close', () => {
+                console.log('Connection closed');
+                this.removeConnection(client);
+                client.end();
+            });
+            this.addConnection(client);
+            await this.onPeerConnected(client);
+        });
+
+        client.connect({
+            host,
+            port,
+            username: this.username,
+            privateKey: this.privateKey,
+        });
 
     }
 
-    onSocketConnected(socket) {
-        console.log(socket);
-        this.addConnection(socket);
-        socket.on('data', (data) =>
-            this.onData(socket, data)
-        );
+    async onPeerConnected(client) {
+        switch (this.status) {
+            case statusesStrings.UNCONNECTED:
+                this.status = statusesStrings.CONNECTED_TO_SERVER;
+                break;
+            case statusesStrings.IN_TRANSFER:
+                await this.downloadPdbFiles(client);
+            // this.handleShell(stream);
+
+            // stream.write('echo "Hello from Peer 1"\n');
+            // stream.end();
+        }
+    }
+    handleConnection(client, info) {
+        console.log(`Connection from ${info.ip}`);
+
+        client.on('authentication', (ctx) => {
+            if (
+                ctx.method === 'publickey' &&
+                ctx.key.algo === 'ssh-rsa' &&
+                ctx.key.data.equals(this.publicKey) &&
+                ctx.username === this.username
+            ) {
+                ctx.accept();
+            } else {
+                ctx.reject();
+            }
+        });
+
+        client.on('ready', () => {
+            console.log('Client is ready');
+            this.addConnection(client);
+        });
+
+        client.on('end', () => {
+            console.log('Client disconnected');
+            this.removeConnection(client);
+        });
+
     }
 
-    addConnection(socket) {
-        this.connections.push({ socket: socket, publicKey: '' });
-        this.sendPublicKey(socket);
+    addConnection(client) {
+        this.connections.push(client);
+        client.on('session', (accept, reject) => {
+            const session = accept();
+            session.on('shell', (accept, reject) => {
+                const shell = accept();
+                this.handleShell(client, shell);
+            });
+        });
     }
 
-    onData(socket, dataAsStream) {
+
+    handleShell(client, shell) {
+        shell.on('data', (data) => {
+            const command = data.toString().trim();
+            console.log(`Received command: ${command}`);
+            this.onData(client, data);
+        });
+
+        shell.on('end', () => {
+            console.log('Shell session ended');
+        });
+    }
+
+    onData(client, dataAsStream) {
         let data = null;
         try {
             data = JSON.parse(dataAsStream);
@@ -57,34 +141,25 @@ module.exports = class Peer {
         }
 
         if (data != null) {
-            // Tratar outras mensagens
-            this.onMessageData(socket, data);
+            this.onMessageData(client, data);
 
         } else {
             this.onStreamedData(dataAsStream);
         }
     }
 
-    onMessageData(socket, data) {
+    onMessageData(client, data) {
         let message = data['message'];
         switch (message) {
             case messagesStrings.SENDER_LIST:
-                //TODO: receber lista de nós que podem enviar o arquivo e buscar em cada um deles em ordem
-                console.log('Conectando com outros nós para buscar o arquivo pdb');
-                break;
-            case messagesStrings.SEND_PDB_FILES:
-                if (this.status == statusesStrings.WAITING_PDB || this.status == statusesStrings.TRANSFER_ERROR) {
-                    if (data['index'] == this.successCount + 1) {
-                        this.status = statusesStrings.IN_TRANSFER;
-                        this.receivePDBFiles(socket, data['index']);
-                    }
+                if (this.status == statusesStrings.TRANSFER_COMPLETE) {
+                    console.error("Transfer already complete!");
+                    return;
                 }
-                break;
-            case messagesStrings.GET_PDB_FILES:
-                this.sendPDBFile(socket, data['index']);
-                break;
-            case messagesStrings.PUBLIC_KEY:
-                this.onPublicKeyReceived(socket, data.publicKey);
+                this.status = statusesStrings.IN_TRANSFER;
+                this.availablePeers = data['addresses'];
+                this.connectTo(this.availablePeers.pop());
+                console.log('Conectando com outros nós para buscar o arquivo pdb');
                 break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
@@ -95,100 +170,34 @@ module.exports = class Peer {
         console.log("data is being streamed");
     }
 
-
-    broadcast(data) {
-        this.connections.forEach(socket => socket.write(data))
-    }
-
-    sendPDBFile(socket, index) {
-
-        const sourceFile = `file/pdb_${index}.zip`;
-        const encryptedFile = `file/pdb_${index}_encrypted.zip`;
-
-        // Verificar se socket.peerInfo está definido
-        this.validatePublicKey(socket);
-
-        // Encriptografar o arquivo antes de enviar
-        let connection = this.connections.find(el => el['socket'] == socket);
-        encryptFile(sourceFile, encryptedFile, connection['publicKey']);
-
-        socket.write(JSON.stringify({ message: messagesStrings.SEND_PDB_FILES, 'index': index }));
-
-        const sourceFileStream = fs.createReadStream(encryptedFile);
-        var fileSize = fs.statSync(encryptedFile).size;
-
-        const writeStream = socket;
-        let previousPercentage = 0;
-
-        sourceFileStream.on('data', (chunk) => {
-            const percentage = (writeStream.bytesWritten / fileSize) * 100;
-            if (Math.floor(percentage) > Math.floor(previousPercentage)) {
-                console.log(`progress:${percentage.toFixed(0)}%`);
-                previousPercentage = percentage;
+    async downloadPdbFiles(client) {
+        try {
+            for (let i = this.successCount + 1; i <= this.fileAmount; i++) {
+                await this.downloadFile(client, i);
             }
-        });
-
-        sourceFileStream.pipe(writeStream);
-
-        sourceFileStream.on('end', () => {
-            console.log(`Arquivo pdb_${index}.zip enviado`);
-        });
-
-        sourceFileStream.on('error', (err) => {
-            console.error(`Erro durante a transferência do arquivo pdb_${index}.zip:`, err.message);
-        });
-    }
-
-    receivePDBFiles(socket, index) {
-        console.log(`Recebendo arquivo PDB ${index}`);
-        this.fsWriteStream = fs.createWriteStream(`./file/pdb_${index}_encrypted.zip`);
-        socket.pipe(this.fsWriteStream);
-
-        this.fsWriteStream.on('finish', () => {
-            console.log(`Arquivo pdb_${index}_encrypted.zip recebido`);
-
-            const decryptedFile = `./file/pdb_${index}.zip`;
-
-            // Descriptografar o arquivo recebido
-            decryptFile(`./file/pdb_${index}_encrypted.zip`, decryptedFile, '../criptography/keys/self/private.pem');
-
-            console.log(`Arquivo pdb_${index}.zip descriptografado salvo em ${decryptedFile}`);
-
-            this.successCount++;
-            if (this.successCount >= this.fileAmount) {
-                socket.write(JSON.stringify({ message: messagesStrings.GET_PDB_FILES, 'index': this.successCount + 1 }));
-            } else {
-                socket.write(JSON.stringify({ message: messagesStrings.TRANSFER_COMPLETE }));
-            }
-        });
-
-        this.fsWriteStream.on('error', () => {
-            console.log(`Erro ao gravar o arquivo ${index}`);
-        });
-    }
-
-    onPublicKeyReceived(socket, publicKey) {
-        // Tratar a chave pública recebida
-        //console.log(`Received public key from ${socket.remoteAddress}:${socket.remotePort}: ${publicKey}`);
-        // Armazenar a chave pública com o socket
-        let connection = this.connections.find((el) => el['socket'] == socket);
-        if (connection) {
-            connection['publicKey'] = publicKey;
-        } else {
-            console.error('Connection not found');
+            client.end();
+        } catch (e) {
+            this.status = statusesStrings.TRANSFER_ERROR;
         }
     }
 
+    downloadFile(client, index) {
+        return new Promise((resolve, reject) => {
+            client.sftp((err, sftp) => {
+                if (err) reject(err);
 
-    validatePublicKey(socket) {
-        let connection = this.connections.find(el => el['socket'] == socket);
-        if (!connection || !connection['publicKey']) {
-            console.error(`Erro: Chave pública não recebida para ${socket.remoteAddress}:${socket.remotePort}`);
-            return;
-        }
-    }
+                sftp.fastGet(`files/pdb_${index}.zip`, `files/pdb_${index}.zip`, (downloadErr) => {
+                    if (downloadErr) {
+                        console.error(`Error downloading file pdb_${index}.zip: ${downloadErr.message}`);
+                    } else {
+                        console.log(`File pdb_${index}.zip downloaded successfully to ${localFilePath}`);
+                    }
+                    sftp.end();
+                    resolve();
+                });
+            });
+        });
 
-    sendPublicKey(socket) {
-        socket.write(JSON.stringify({ message: messagesStrings.PUBLIC_KEY, publicKey: this.publicKey }));
+
     }
 }

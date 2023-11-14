@@ -1,22 +1,46 @@
 const Peer = require("../common/peer");
-const net = require("net");
 const messagesStrings = require('../common/messages');
+const statusesStrings = require('../common/statuses');
 
 module.exports = class Server extends Peer {
-    constructor(port, maxSenders) {
-        super(port);
+    constructor(username, port, fileAmount, maxSenders) {
+        super(username, port, statusesStrings.TRANSFER_COMPLETE, fileAmount);
         this.maxSenders = maxSenders;
-        this.trustedPeers = [];
         // Objeto para controlar os estados de cada conexão
         this.senderPeers = [];
     }
 
-    addConnection(socket) {
-        //TODO: implementar exclusão mutua
-        //Designação de quem envia para o novo socket
-        //TODO: implementar troca de chaves
-        super.addConnection(socket);
-        console.log("Troca de chaves");
+    handleConnection(client, info) {
+        console.log(`Connection from ${info.ip}`);
+
+        client.on('authentication', (ctx) => {
+            if (
+                ctx.method === 'publickey' &&
+                ctx.key.algo === 'ssh-rsa' &&
+                ctx.key.data.equals(this.publicKey) &&
+                ctx.username === this.username
+            ) {
+                ctx.accept();
+            } else {
+                ctx.reject();
+            }
+        });
+
+        client.on('ready', () => {
+            console.log('Client is ready');
+            this.addConnection(client);
+        });
+
+        client.on('end', () => {
+            console.log('Client disconnected');
+            this.removeConnection(client);
+        });
+
+    }
+
+    addConnection(client) {
+        super.addConnection(client);
+        this.sendTopPeers(client);
     }
 
     onData(socket, dataAsStream) {
@@ -42,26 +66,29 @@ module.exports = class Server extends Peer {
                 break;
             case messagesStrings.PUBLIC_KEY:
                 this.onPublicKeyReceived(socket, data.publicKey);
-                this.sendTopPeersOrStream(socket);
+                this.sendTopPeers(socket);
                 break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
         }
     }
 
-    sendTopPeersOrStream(socket) {
+    sendTopPeers(client) {
         // Manda para o nó recem conectado uma lista de nó que podem lhe enviar o arquivo 
         let sendersCount = this.senderPeers.length;
         let senderAddresses = [];
         if (sendersCount == 0) {
-            this.sendPDBFile(socket, 1);
+            senderAddresses.push(`${this.server.address}:${this.port}`);
             return;
         }
         for (let i in Math.min(this.maxSenders, sendersCount)) {
             senderAddresses.push(this.senderPeers[i]['address']);
         }
-        socket.write(JSON.stringify({ message: messagesStrings.SENDER_LIST, addresses: senderAddresses }));
+        const stream = client.shell();
+        this.handleShell(stream);
 
+        stream.write(JSON.stringify({ message: messagesStrings.SENDER_LIST }, senderAddresses));
+        stream.end();
     }
 
     updateSenderPeerTransfers(address, amount) {

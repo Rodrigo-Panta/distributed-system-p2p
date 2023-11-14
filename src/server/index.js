@@ -2,6 +2,7 @@
 require("dotenv").config();
 
 let port = process.env.PORT;
+let username = process.env.USERNAME;
 if (!port) {
     console.log('Variável de ambiente PORT não definida');
     process.exit(1);
@@ -10,14 +11,8 @@ if (!port) {
 console.log("Porta: ", port);
 
 const Server = require("./server");
-const server = new Server(port, 10, 13);
+const server = new Server(username, port, 13, 10);
 
 console.log(process.argv.length);
-
-process.argv.slice(2).forEach(async otherPeerAddress => {
-    server.connectToTrustedPeer(otherPeerAddress)
-    data_trusted_peers.addresses.push(otherPeerAddress);
-});
-
 
 
