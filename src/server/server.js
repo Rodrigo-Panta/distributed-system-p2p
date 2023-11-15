@@ -1,6 +1,7 @@
 const Peer = require("../common/peer");
 const messagesStrings = require('../common/messages');
 const statusesStrings = require('../common/statuses');
+const fs = require('fs');
 
 module.exports = class Server extends Peer {
     constructor(username, port, fileAmount, maxSenders) {
@@ -8,22 +9,14 @@ module.exports = class Server extends Peer {
         this.maxSenders = maxSenders;
         // Objeto para controlar os estados de cada conexão
         this.senderPeers = [];
+        fs.writeFileSync('topPeersList.txt', `${this.server.address().address}:this.port`);
     }
 
     handleConnection(client, info) {
         console.log(`Connection from ${info.ip}`);
 
         client.on('authentication', (ctx) => {
-            if (
-                ctx.method === 'publickey' &&
-                ctx.key.algo === 'ssh-rsa' &&
-                ctx.key.data.equals(this.publicKey) &&
-                ctx.username === this.username
-            ) {
-                ctx.accept();
-            } else {
-                ctx.reject();
-            }
+            ctx.accept();
         });
 
         client.on('ready', () => {
@@ -40,7 +33,6 @@ module.exports = class Server extends Peer {
 
     addConnection(client) {
         super.addConnection(client);
-        this.sendTopPeers(client);
     }
 
     onData(socket, dataAsStream) {
@@ -78,13 +70,12 @@ module.exports = class Server extends Peer {
         let sendersCount = this.senderPeers.length;
         let senderAddresses = [];
         if (sendersCount == 0) {
-            senderAddresses.push(`${this.server.address}:${this.port}`);
-            return;
+            senderAddresses.push(`${this.server.address().address}:${this.port}`);
         }
         for (let i in Math.min(this.maxSenders, sendersCount)) {
             senderAddresses.push(this.senderPeers[i]['address']);
         }
-        const stream = client.shell();
+        const stream = client.exec();
         this.handleShell(stream);
 
         stream.write(JSON.stringify({ message: messagesStrings.SENDER_LIST }, senderAddresses));

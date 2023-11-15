@@ -2,7 +2,6 @@ const { Client, Server } = require('ssh2');
 const fs = require('fs');
 const messagesStrings = require('../common/messages');
 const statusesStrings = require('../common/statuses');
-const { utils: { generateKeyPair, generateKeyPairSync } } = require('ssh2');
 
 module.exports = class Peer {
 
@@ -17,9 +16,8 @@ module.exports = class Peer {
         this.fileAmount = fileAmount;
         this.availablePeers = [];
 
-        let keys = generateKeyPairSync('ed25519');
-        this.privateKey = keys.private;
-        this.publicKey = keys.public;
+        this.privateKey = fs.readFileSync('./keys');
+        this.publicKey = fs.readFileSync('./keys.pub');
 
         this.initializeServer();
 
@@ -48,14 +46,19 @@ module.exports = class Peer {
             console.log(`Connected to ${host}:${port}`);
             this.addConnection(client);
 
-            const stream = client.shell();
-            stream.on('close', () => {
-                console.log('Connection closed');
-                this.removeConnection(client);
-                client.end();
-            });
-            this.addConnection(client);
             await this.onPeerConnected(client);
+        });
+
+        client.on('session', (accept, reject) => {
+            const session = accept();
+            session.once('exec', (accept, reject, info) => {
+                console.log('Client wants to execute: ' + inspect(info.command));
+                const stream = accept();
+                stream.stderr.write('Oh no, the dreaded errors!\n');
+                stream.write('Just kidding about the errors!\n');
+                stream.exit(0);
+                stream.end();
+            });
         });
 
         client.connect({
@@ -71,6 +74,7 @@ module.exports = class Peer {
         switch (this.status) {
             case statusesStrings.UNCONNECTED:
                 this.status = statusesStrings.CONNECTED_TO_SERVER;
+                await this.getTopPeersList(client);
                 break;
             case statusesStrings.IN_TRANSFER:
                 await this.downloadPdbFiles(client);
@@ -170,27 +174,40 @@ module.exports = class Peer {
         console.log("data is being streamed");
     }
 
+    async getTopPeersList(client) {
+        let success = false;
+        while (!success) {
+            try {
+                await this.downloadFile(client, 'topPeersList.txt');
+                client.end();
+            } catch (e) {
+                this.status = statusesStrings.TRANSFER_ERROR;
+            }
+        }
+    }
+
+
     async downloadPdbFiles(client) {
         try {
             for (let i = this.successCount + 1; i <= this.fileAmount; i++) {
-                await this.downloadFile(client, i);
+                await this.downloadFile(client, `files/pdb_${i}.zip`);
             }
-            client.end();
         } catch (e) {
             this.status = statusesStrings.TRANSFER_ERROR;
         }
     }
 
-    downloadFile(client, index) {
+    downloadFile(client, filePath) {
+        let fileName = filePath.split('/')[filePath.split('/').length - 1];
         return new Promise((resolve, reject) => {
             client.sftp((err, sftp) => {
                 if (err) reject(err);
 
-                sftp.fastGet(`files/pdb_${index}.zip`, `files/pdb_${index}.zip`, (downloadErr) => {
+                sftp.fastGet(filePath, filePath, (downloadErr) => {
                     if (downloadErr) {
                         console.error(`Error downloading file pdb_${index}.zip: ${downloadErr.message}`);
                     } else {
-                        console.log(`File pdb_${index}.zip downloaded successfully to ${localFilePath}`);
+                        console.log(`File ${fileName} downloaded successfully`);
                     }
                     sftp.end();
                     resolve();
