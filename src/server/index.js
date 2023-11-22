@@ -1,6 +1,8 @@
 //index.js
 require("dotenv").config();
 
+const data_trusted_peers = { addresses: [] };
+
 let port = process.env.PORT;
 if (!port) {
     console.log('Variável de ambiente PORT não definida');

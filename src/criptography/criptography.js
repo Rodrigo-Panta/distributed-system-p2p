@@ -33,8 +33,7 @@ function generateKeyPair() {
     return { publicKey: publicKeyPem, privateKey: privateKeyPem };
 }
 
-// Função para criptografar um arquivo usando a chave pública
-function encryptFile(inputFilePath, outputFilePath, publicKeyString) {
+function encryptFileWithPublicKey(inputFilePath, outputFilePath, publicKeyString) {
     const publicKey = forge.pki.publicKeyFromPem(publicKeyString);
 
     const inputData = fs.readFileSync(inputFilePath);
@@ -43,15 +42,51 @@ function encryptFile(inputFilePath, outputFilePath, publicKeyString) {
     fs.writeFileSync(outputFilePath, encryptedData, 'binary');
 }
 
-// Função para descriptografar um arquivo usando a chave privada
-function decryptFile(inputFilePath, outputFilePath, privateKeyPath) {
+function decryptFileWithPrivateKeyAndSymmetricKey(inputFilePath, outputFilePath, privateKeyPath, symmetricKey) {
     const privateKeyPem = fs.readFileSync(privateKeyPath, 'utf8');
     const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
 
     const encryptedData = fs.readFileSync(inputFilePath, 'binary');
-    const decryptedData = privateKey.decrypt(encryptedData);
+    const decryptedSymmetricKey = privateKey.decrypt(encryptedData);
+
+    // Use the decrypted symmetric key for further decryption
+    const encryptedFileData = fs.readFileSync(inputFilePath);
+    const decryptedData = decryptWithSymmetricKey(encryptedFileData, symmetricKey);
 
     fs.writeFileSync(outputFilePath, decryptedData);
 }
 
-module.exports = { generateKeyPair, encryptFile, decryptFile };
+function encryptWithSymmetricKey(data, symmetricKey) {
+    const cipher = crypto.createCipher('aes-256-cbc', symmetricKey);
+    let encrypted = cipher.update(data, 'utf-8', 'hex');
+    encrypted += cipher.final('hex');
+    return encrypted;
+}
+
+function decryptWithSymmetricKey(data, symmetricKey) {
+    const decipher = crypto.createDecipher('aes-256-cbc', symmetricKey);
+
+    // Ensure the "data" argument is a string
+    const encryptedData = typeof data === 'object' ? JSON.stringify(data) : data;
+
+    try {
+        let decrypted = decipher.update(encryptedData, 'hex', 'utf-8');
+        decrypted += decipher.final('utf-8');
+
+        // Remove padding
+        decrypted = decrypted.replace(/\0+$/, '');
+
+        return decrypted;
+    } catch (error) {
+        console.error('Error during decryption:', error);
+        return null;
+    }
+}
+
+module.exports = {
+    generateKeyPair,
+    encryptFileWithPublicKey,
+    decryptFileWithPrivateKeyAndSymmetricKey,
+    encryptWithSymmetricKey,
+    decryptWithSymmetricKey,
+};

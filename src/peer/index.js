@@ -21,7 +21,7 @@ if (process.argv.length != 3) {
     process.exit(1);
 }
 
-peer.connectTo(process.argv[2]);
+peer.connectToAsync(process.argv[2]);
 
 
 
