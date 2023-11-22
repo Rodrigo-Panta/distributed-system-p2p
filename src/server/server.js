@@ -42,7 +42,8 @@ module.exports = class Server extends Peer {
                 break;
             case messagesStrings.PUBLIC_KEY:
                 this.onPublicKeyReceived(socket, data.publicKey);
-                this.sendTopPeersOrStream(socket);
+                // CONTINUAR DAQUI
+                this.sendSimetricKey();
                 break;
             default:
                 console.log(`Mensagem desconhecida recebida de ${socket.address}:${socket.port}. \nConteúdo: ${dataAsStream.toString()}`);
