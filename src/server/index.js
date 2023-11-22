@@ -14,12 +14,5 @@ console.log("Porta: ", port);
 const Server = require("./server");
 const server = new Server(port, 10, 13);
 
-console.log(process.argv.length);
-
-process.argv.slice(2).forEach(async otherPeerAddress => {
-    server.connectToTrustedPeer(otherPeerAddress)
-    data_trusted_peers.addresses.push(otherPeerAddress);
-});
-
 
 

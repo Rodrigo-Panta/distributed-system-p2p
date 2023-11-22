@@ -11,27 +11,6 @@ module.exports = class Server extends Peer {
         this.senderPeers = [];
     }
 
-    connectToTrustedPeer(peerAddress) {
-        // Split the peerAddress into host and port
-        const [host, port] = peerAddress.split(':');
-
-        // Create a new socket and attempt to connect to the trusted peer
-        const socket = net.createConnection({ host, port }, () => {
-            console.log(`Connected to trusted peer at ${host}:${port}`);
-            
-            // Add the connected socket to your connections or perform any other required logic
-            this.addConnection(socket);
-
-            // You might want to send some initial data or perform other actions here
-        });
-
-        // Handle errors during connection
-        socket.on('error', (error) => {
-            console.error(`Error connecting to trusted peer at ${host}:${port}: ${error.message}`);
-            // Handle the error as needed
-        });
-    }
-
     addConnection(socket) {
         //TODO: implementar exclusão mutua
         //Designação de quem envia para o novo socket
