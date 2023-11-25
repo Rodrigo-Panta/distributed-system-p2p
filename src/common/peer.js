@@ -53,7 +53,6 @@ module.exports = class Peer {
             } else {
                 res.send({ message: "This peer's transfer is not complete yet" });
             }
-            req.end()
         });
 
         this.app.post("/mssg", function (req, res) {

@@ -1,5 +1,5 @@
 //index.js
-const { getTopPeers } = require('../common/promisses');
+const { getTopPeers, getPdbFiles } = require('../common/promisses');
 const https = require('https');
 const fs = require('fs');
 require("dotenv").config();
@@ -27,19 +27,19 @@ if (process.argv.length != 3) {
 let serverAddress = process.argv[2];
 
 async function main() {
-    let topPeers = await getTopPeers(serverAddress);
-    try {
-        while (peer.successCount < fileAmount) {
+    let topPeers = (await getTopPeers(serverAddress))['addresses'];
+    while (peer.successCount < fileAmount) {
+        try {
             let senderPeer = topPeers.pop();
             if (senderPeer) {
-                getPdbFiles(peer, topPeers);
+                await getPdbFiles(serverAddress, peer);
             } else {
-                topPeers = await _getTopPeers(serverAddress);
+                topPeers = (await getTopPeers(serverAddress))['addresses'];
             }
+        } catch (e) {
+            console.error('Erro ao baixar os arquivos PDB. Tentando novamente');
+            console.error(e.message);
         }
-    } catch (e) {
-        console.error('Erro ao baixar os arquivos PDB');
-        console.error(e.message);
     }
 }
 
