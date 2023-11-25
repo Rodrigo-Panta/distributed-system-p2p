@@ -2,3 +2,4 @@ pdb_files/*
 pdb_files.zip
 **/*.zip
 src/keys/self/*
+**/node_modules
