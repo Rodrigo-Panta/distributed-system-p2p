@@ -1,5 +1,6 @@
 //index.js
 require("dotenv").config();
+const statusesStrings = require('../common/statuses');
 
 const data_trusted_peers = { addresses: [] };
 
@@ -12,7 +13,7 @@ if (!port) {
 console.log("Porta: ", port);
 
 const Server = require("./server");
-const server = new Server(port, 10, 13);
+const server = new Server(port, statusesStrings.TRANSFER_COMPLETE, 13, 10);
 
 
 
