@@ -40,11 +40,11 @@ async function _getTopPeers(serverAddress) {
 
 async function _getPdbFiles(serverAddress, peer) {
     for (let i = peer.successCount; i < peer.fileAmount; i++) {
-        await _getPdbFile(serverAddress, i + 1);
+        await _getPdbFile(serverAddress, i + 1, peer);
     }
 }
 
-async function _getPdbFile(serverAddress, index) {
+async function _getPdbFile(serverAddress, index, peer) {
     return new Promise(function (resolve, reject) {
         req = https.get(`https://${serverAddress}/file?number=${index}`, function (response) {
             try {
@@ -54,6 +54,7 @@ async function _getPdbFile(serverAddress, index) {
                     reject(e);
                 });
                 response.on('end', function () {
+                    peer.successCount++;
                     resolve(true);
                 });
 
