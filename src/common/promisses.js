@@ -1,5 +1,6 @@
 const https = require('https');
 const fs = require('fs');
+const { TRANSFER_COMPLETE } = require('./messages');
 
 async function getTopPeers(serverAddress) {
     try {
@@ -66,6 +67,49 @@ async function _getPdbFile(serverAddress, index, peer) {
     });
 }
 
+async function transferFinished(serverAddress, peer) {
+    return new Promise(function (resolve, reject) {
+        // The data you want to send in the request body
+        const postData = JSON.stringify({
+            message: TRANSFER_COMPLETE,
+            port: `${peer.port}`,
+        });
+
+        // Options for the HTTP request
+        const options = {
+            hostname: serverAddress.split(':')[0],
+            port: serverAddress.split(':')[1],
+            path: '/transfer-complete',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData),
+            },
+            rejectUnauthorized: false,
+        };
+
+        const req = https.request(options, (res) => {
+            let responseData = '';
+            res.on('data', (chunk) => {
+                responseData += chunk;
+            });
+            res.on('end', () => {
+                console.log('Response:', responseData);
+            });
+        });
+
+        req.on('error', (e) => {
+            console.error('Error:', e.message);
+        });
+
+        req.write(postData);
+
+        req.end();
+        console.log("Transfer finished")
+    });
+}
+
 
 module.exports.getTopPeers = getTopPeers;
 module.exports.getPdbFiles = getPdbFiles;
+module.exports.transferFinished = transferFinished;

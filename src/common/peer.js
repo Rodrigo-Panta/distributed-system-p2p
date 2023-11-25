@@ -55,22 +55,13 @@ module.exports = class Peer {
             }
         });
 
-        this.app.post("/mssg", function (req, res) {
-
-            console.log(req.body);
-
-            res.redirect("/");
-            req.end()
-
-        });
-
         const options = {
             key: fs.readFileSync("server.key"),
             cert: fs.readFileSync("server.cert"),
         };
 
         let server = https.createServer(options, this.app)
-            .listen(this.port, function (req, res) {
+            .listen(this.port, '0.0.0.0', function (req, res) {
                 console.log(`Server started at port ${self.port}`);
             });
     }

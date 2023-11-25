@@ -1,5 +1,5 @@
 //index.js
-const { getTopPeers, getPdbFiles } = require('../common/promisses');
+const { getTopPeers, getPdbFiles, transferFinished } = require('../common/promisses');
 const https = require('https');
 const fs = require('fs');
 require("dotenv").config();
@@ -32,7 +32,8 @@ async function main() {
         try {
             let senderPeer = topPeers.pop();
             if (senderPeer) {
-                await getPdbFiles(serverAddress, peer);
+                await getPdbFiles(senderPeer, peer);
+                await transferFinished(serverAddress, peer);
             } else {
                 topPeers = (await getTopPeers(serverAddress))['addresses'];
             }

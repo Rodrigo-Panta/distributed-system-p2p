@@ -16,9 +16,15 @@ module.exports = class Server extends Peer {
         this.app.get("/top-peers", function (req, res) {
             let senderPeers = [];
             if (self.senderPeers.length == 0) {
-                senderPeers = [`${req.socket.address().address}:${self.port}`];
+                if (req.socket.address().family == 'IPv4') {
+                    senderPeers = [`${req.socket.address().address}:${self.port}`];
+                }
+                else if (req.socket.address().family == 'IPv6') {
+                    senderPeers = [`[${req.socket.address().address}]:${self.port}`];
+                }
+
             } else {
-                senderPeers = this.senderPeers;
+                senderPeers = self.senderPeers;
             }
             res.send({ message: messagesStrings.SENDER_LIST, addresses: senderPeers });
         });
@@ -27,7 +33,12 @@ module.exports = class Server extends Peer {
         // the form 
         this.app.post("/transfer-complete", function (req, res) {
             console.log(req.body);
-            this.senderPeers.push(`${req.connection.remoteAddress}:${req.connection.remotePort}`)
+            if (req.socket.remoteFamily == 'IPv4') {
+                self.senderPeers.push(`${req.socket.remoteAddress}:${req.body['port']}`)
+            }
+            else if (req.socket.remoteFamily == 'IPv6') {
+                self.senderPeers.push(`[${req.socket.remoteAddress}]:${req.body['port']}`)
+            }
             res.send({ message: 'OK' });
         });
     }
