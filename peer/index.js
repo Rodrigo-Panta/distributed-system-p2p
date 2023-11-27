@@ -27,22 +27,18 @@ const peer = new Peer(port, statusesStrings.WAITING_PDB, fileAmount);
 async function main() {
     // Inicialmente, o peer atua apenas como receptor e obtém a lista de top peers do servidor
     try {
-        let topPeersData = await getTopPeers(serverAddress);
-        console.log('topPeersData:', topPeersData);
-
-        // Certifique-se de que topPeersData.addresses é um array
-        let topPeers = Array.isArray(topPeersData.addresses) ? topPeersData.addresses : [];
+        let topPeers = await getTopPeers(serverAddress);
+        console.log('topPeersData:', topPeers);
 
         while (peer.successCount < fileAmount) {
             try {
                 console.log(`topPeers ${JSON.stringify(topPeers)}`);
-                let senderPeer = topPeers.pop()[0];
+                let senderPeer = Object.entries(topPeers.addresses).pop()[0];
                 console.log(`senderPeer ${JSON.stringify(senderPeer)}`);
 
                 if (senderPeer) {
-                    const [senderAddress, senderPort] = senderPeer.split(':');
                     // Peer obtém arquivos do senderPeer
-                    await getPdbFiles({ address: senderAddress, port: senderPort }, peer);
+                    await getPdbFiles(senderPeer, peer);
                     await transferFinished(serverAddress, peer);
                 } else {
                     // Se a lista estiver vazia, o servidor envia diretamente o arquivo
