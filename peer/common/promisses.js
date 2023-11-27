@@ -1,6 +1,6 @@
+const path = require('path');
 const https = require('https');
 const fs = require('fs');
-const path = require('path');
 const { TRANSFER_COMPLETE } = require('./messages');
 
 async function getTopPeers(serverAddress) {
@@ -42,9 +42,14 @@ async function _getTopPeers(serverAddress) {
 
 async function _getPdbFiles(serverAddress, peer) {
     for (let i = peer.successCount; i < peer.fileAmount; i++) {
-        await _getPdbFile(serverAddress, i + 1, peer);
+        try {
+            await _getPdbFile(serverAddress, i + 1, peer);
+        } catch (error) {
+            console.error(`Erro ao baixar o arquivo PDB ${i}: ${error.message}`);
+        }
     }
 }
+
 
 async function _getPdbFile(serverAddress, index, peer) {
     return new Promise(function (resolve, reject) {
@@ -59,11 +64,9 @@ async function _getPdbFile(serverAddress, index, peer) {
                     peer.successCount++;
                     resolve(true);
                 });
-
             } catch (e) {
                 reject(e);
             }
-
         });
     });
 }
@@ -106,7 +109,7 @@ async function transferFinished(serverAddress, peer) {
         req.write(postData);
 
         req.end();
-        console.log("Transfer finished")
+        console.log("Transfer finished");
     });
 }
 

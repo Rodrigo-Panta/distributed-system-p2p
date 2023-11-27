@@ -1,6 +1,6 @@
 const express = require("express");
 const fs = require('fs');
-
+const https = require('https');
 var path = require('path');
 
 const messagesStrings = require('../common/messages');
@@ -21,7 +21,7 @@ module.exports = class Peer {
         var self = this;
         let https;
         try {
-            https = require('node:https');
+            https = require('https');
         } catch (err) {
             console.error('https support is disabled!');
         }
