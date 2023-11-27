@@ -11,7 +11,7 @@ if (!port) {
 console.log("Porta: ", port);
 
 const Server = require("./server");
-const server = new Server(port, statusesStrings.TRANSFER_COMPLETE, 13, 10);
+const server = new Server(port, statusesStrings.TRANSFER_COMPLETE, 11, 10);
 
 
 

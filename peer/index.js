@@ -13,7 +13,7 @@ if (!port) {
 }
 console.log("Porta: ", port);
 
-const fileAmount = 13;
+const fileAmount = 11;
 
 if (process.argv.length != 3) {
     console.log('Nó servidor não definido');
