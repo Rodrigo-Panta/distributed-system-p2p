@@ -24,7 +24,7 @@ module.exports = class Server extends Peer {
                 }
                 res.send({ message: messagesStrings.SENDER_LIST, addresses: senderPeers });
             } else {
-                for (key, value in self.senderPeers) {
+                for (key in self.senderPeers) {
                     if (Math.random() > 0.5) {
                         topPeers.push(key);
                     } else {
@@ -48,7 +48,7 @@ module.exports = class Server extends Peer {
                 self.senderPeers[`${req.socket.remoteAddress}:${req.body['port']}`] = { transfers: 0 };
             }
             else if (req.socket.remoteFamily == 'IPv6') {
-                self.senderPeers`[${req.socket.remoteAddress}]:${req.body['port']}` = { transfers: 0 };
+                self.senderPeers[`${req.socket.remoteAddress}]:${req.body['port']}`] = { transfers: 0 };
             }
 
             console.log(`${req.socket.remoteAddress}:${req.body['port']} agora e um sender`);
