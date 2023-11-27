@@ -15,7 +15,7 @@ module.exports = class Server extends Peer {
 
         this.app.get("/top-peers", function (req, res) {
             let topPeers = [];
-            if (self.senderPeers.length == 0) {
+            if (Object.entries.apply(self.senderPeers).length == 0) {
                 if (req.socket.address().family == 'IPv4') {
                     topPeers.push(`${req.socket.address().address}:${self.port}`);
                 }

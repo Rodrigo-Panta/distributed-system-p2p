@@ -33,7 +33,7 @@ async function main() {
         while (peer.successCount < fileAmount) {
             try {
                 console.log(`topPeers ${JSON.stringify(topPeers)}`);
-                let senderPeer = Object.entries(topPeers.addresses).pop()[0];
+                let senderPeer = topPeers.addresses.pop();
                 console.log(`senderPeer ${JSON.stringify(senderPeer)}`);
 
                 if (senderPeer) {
