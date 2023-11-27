@@ -15,27 +15,25 @@ module.exports = class Server extends Peer {
 
         this.app.get("/top-peers", function (req, res) {
             let topPeers = [];
-            if (self.senderPeers.length == 0) {
+            if (Object.entries(self.senderPeers).length == 0) {
                 if (req.socket.address().family == 'IPv4') {
                     topPeers.push(`${req.socket.address().address}:${self.port}`);
                 }
                 else if (req.socket.address().family == 'IPv6') {
                     topPeers.push(`[${req.socket.address().address}]:${self.port}`);
                 }
-                res.send({ message: messagesStrings.SENDER_LIST, addresses: senderPeers });
+                res.send({ message: messagesStrings.SENDER_LIST, addresses: topPeers });
             } else {
-                for (key, value in self.senderPeers) {
+                for (const [key, value] of Object.entries(self.senderPeers)) {
                     if (Math.random() > 0.5) {
                         topPeers.push(key);
                     } else {
                         topPeers.splice(0, 0, key);
                     }
-                    const sortedPeers = Object.entries(self.senderPeers)
-                        .sort(([, a], [, b]) => a.transfers - b.transfers)
-                        .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
                 }
 
-                res.send({ message: messagesStrings.SENDER_LIST, addresses: sortedPeers });
+                res.send({ message: messagesStrings.SENDER_LIST, addresses: topPeers });
             }
 
         });
@@ -48,7 +46,7 @@ module.exports = class Server extends Peer {
                 self.senderPeers[`${req.socket.remoteAddress}:${req.body['port']}`] = { transfers: 0 };
             }
             else if (req.socket.remoteFamily == 'IPv6') {
-                self.senderPeers`[${req.socket.remoteAddress}]:${req.body['port']}` = { transfers: 0 };
+                self.senderPeers[`${req.socket.remoteAddress}]:${req.body['port']}`] = { transfers: 0 };
             }
 
             console.log(`${req.socket.remoteAddress}:${req.body['port']} agora e um sender`);

@@ -109,6 +109,7 @@ async function transferFinished(serverAddress, peer) {
         req.write(postData);
 
         req.end();
+        peer.status = TRANSFER_COMPLETE;
         console.log("Transfer finished");
     });
 }
