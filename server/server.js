@@ -14,23 +14,30 @@ module.exports = class Server extends Peer {
         super.initializeServer();
 
         this.app.get("/top-peers", function (req, res) {
-            let senderPeers = {};
+            let topPeers = [];
             if (self.senderPeers.length == 0) {
                 if (req.socket.address().family == 'IPv4') {
-                    senderPeers[`${req.socket.address().address}:${self.port}`] = { transfers: 0 };
+                    topPeers.push(`${req.socket.address().address}:${self.port}`);
                 }
                 else if (req.socket.address().family == 'IPv6') {
-                    senderPeers[`[${req.socket.address().address}]:${self.port}`] = { transfers: 0 };
+                    topPeers.push(`[${req.socket.address().address}]:${self.port}`);
                 }
                 res.send({ message: messagesStrings.SENDER_LIST, addresses: senderPeers });
             } else {
-                senderPeers = self.senderPeers;
-                const sortedPeers = Object.entries(self.senderPeers)
-                .sort(([, a], [, b]) => a.transfers - b.transfers)
-                .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+                for (key, value in self.senderPeers) {
+                    if (Math.random() > 0.5) {
+                        topPeers.push(key);
+                    } else {
+                        topPeers.splice(0, 0, key);
+                    }
+                    const sortedPeers = Object.entries(self.senderPeers)
+                        .sort(([, a], [, b]) => a.transfers - b.transfers)
+                        .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+                }
+
                 res.send({ message: messagesStrings.SENDER_LIST, addresses: sortedPeers });
             }
-            
+
         });
 
         // Post request for geetting input from 
