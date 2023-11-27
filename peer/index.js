@@ -22,7 +22,7 @@ if (process.argv.length != 3) {
 
 let serverAddress = process.argv[2];
 
-const peer = new Peer( port, statusesStrings.WAITING_PDB, fileAmount);
+const peer = new Peer(port, statusesStrings.WAITING_PDB, fileAmount);
 
 async function main() {
     // Inicialmente, o peer atua apenas como receptor e obtém a lista de top peers do servidor
@@ -36,9 +36,9 @@ async function main() {
         while (peer.successCount < fileAmount) {
             try {
                 console.log(`topPeers ${JSON.stringify(topPeers)}`);
-                let senderPeer = topPeers.pop();
+                let senderPeer = topPeers.pop()[0];
                 console.log(`senderPeer ${JSON.stringify(senderPeer)}`);
-                
+
                 if (senderPeer) {
                     const [senderAddress, senderPort] = senderPeer.split(':');
                     // Peer obtém arquivos do senderPeer
